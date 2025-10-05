@@ -1,6 +1,6 @@
 import { db } from "@/app/_lib/prisma";
 import { TransactionType } from "@prisma/client";
-import { TransactionPercentageType } from "./types";
+import { TotalExpensePerCategory, TransactionPercentagePerType } from "./types";
 
 export const getDashboard = async (month: string) => {
   const where = {
@@ -46,20 +46,17 @@ export const getDashboard = async (month: string) => {
     )?._sum?.amount,
   );
 
-  const typesPercentage: TransactionPercentageType = {
+  const typesPercentage: TransactionPercentagePerType = {
     [TransactionType.DEPOSIT]: Math.round(
-      transactionsTotal === 0 ? 0 : (depositsTotal / transactionsTotal) * 100,
-    ),
-    [TransactionType.INVESTMENT]: Math.round(
-      transactionsTotal === 0
-        ? 0
-        : (investmentsTotal / transactionsTotal) * 100,
+      (Number(depositsTotal || 0) / Number(transactionsTotal)) * 100,
     ),
     [TransactionType.EXPENSE]: Math.round(
-      transactionsTotal === 0 ? 0 : (expensesTotal / transactionsTotal) * 100,
+      (Number(expensesTotal || 0) / Number(transactionsTotal)) * 100,
+    ),
+    [TransactionType.INVESTMENT]: Math.round(
+      (Number(investmentsTotal || 0) / Number(transactionsTotal)) * 100,
     ),
   };
-
   //   const typePercentages = {
   //     [TransactionType.DEPOSIT]:
   //       depositsTotal === 0 ? 0 : (depositsTotal / balance) * 100,
@@ -69,11 +66,37 @@ export const getDashboard = async (month: string) => {
   //       expensesTotal === 0 ? 0 : (expensesTotal / balance) * 100,
   //   } as const;
 
+  const totalExpensePerCategory: TotalExpensePerCategory[] = (
+    await db.transaction.groupBy({
+      by: ["category"],
+      where: {
+        ...where,
+        type: TransactionType.EXPENSE,
+      },
+      _sum: {
+        amount: true,
+      },
+    })
+  ).map((category) => ({
+    category: category.category,
+    totalAmount: Number(category._sum.amount),
+    percentageOfTotal: Math.round(
+      (Number(category._sum.amount) / Number(expensesTotal)) * 100,
+    ),
+  }));
+
+  //   const lastTransactions = await db.transaction.findMany({
+  //     where,
+  //     orderBy: { date: "desc" },
+  //     take: 15,
+  //   });
+
   return {
     balance,
     depositsTotal,
     investmentsTotal,
     expensesTotal,
     typesPercentage,
+    totalExpensePerCategory,
   };
 };
