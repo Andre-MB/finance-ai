@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Navbar from "../_components/navar";
 import SummaryCards from "./_components/summary-cards";
@@ -9,6 +9,7 @@ import { getDashboard } from "../_data/get-dashbiard";
 import ExpensesPerCategory from "./_components/expenses-per-category";
 import LastTransactions from "./_components/last-transaction";
 import { canUserAddTransaction } from "../_data/can-user-add-transaction";
+import AiReportButton from "./_components/ai-report-button";
 
 interface HomeProps {
   searchParams: {
@@ -33,6 +34,8 @@ const Home = async ({ searchParams: { month } }: HomeProps) => {
 
   const userCanAddTransaction = await canUserAddTransaction();
 
+  const user = await (await clerkClient()).users.getUser(userId);
+
   return (
     <>
       <Navbar />
@@ -40,7 +43,16 @@ const Home = async ({ searchParams: { month } }: HomeProps) => {
       <div className="flex flex-col space-y-3 overflow-hidden p-3">
         <div className="flex-align-center flex justify-between">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <TimeSelect />
+
+          <div className="flex items-center gap-3">
+            <AiReportButton
+              month={month}
+              hasPremiumPlan={
+                user.publicMetadata.subscriptionPlan === "premium"
+              }
+            />
+            <TimeSelect />
+          </div>
         </div>
 
         <div className="grid grid-cols-[2fr,1fr] gap-2 overflow-hidden">
